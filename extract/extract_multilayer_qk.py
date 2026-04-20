@@ -107,7 +107,7 @@ def extract_multilayer_features(
             k = qkv[1].transpose(1, 2).reshape(B, T, -1)[:, 1:, :]  # (B, N, D)
             qk_layers.append(q + k)  # sum captures Q·K attention signal
 
-        feats = torch.cat(qk_layers, dim=-1).cpu()  # (B, N, num_blocks*D)
+        feats = torch.cat(qk_layers, dim=-1).cpu().half()  # (B, N, num_blocks*D) — float16 halves disk usage
 
         torch.save({
             'k': feats,        # 'k' key keeps downstream code compatible
@@ -152,7 +152,7 @@ def _extract_eig_svd(
     if output_file.is_file():
         return
 
-    feats = data_dict['k_multi'].squeeze()  # (N, D)
+    feats = data_dict['k_multi'].squeeze().float()  # (N, D) — cast back to float32 for SVD
     if normalize:
         feats = F.normalize(feats, p=2, dim=-1)
 
