@@ -207,10 +207,109 @@ def extract_eigs_svd(
     utils.parallel_process(inputs, fn, multiprocessing)
 
 
+# ---------------------------------------------------------------------------
+# Combined: extract features + eigenvectors in one pass (no feature files saved)
+# ---------------------------------------------------------------------------
+
+def extract_features_and_eigs(
+    images_list: str,
+    images_root: Optional[str],
+    model_name: str,
+    batch_size: int,
+    eigs_output_dir: str,
+    K: int = 20,
+    which_blocks: str = '2,5,8,11',
+    normalize: bool = True,
+):
+    """
+    Extract Q+K features and compute eigenvectors in a single pass.
+    Never writes feature files to disk — eigenvectors only (~1GB for VOC2012).
+    """
+    which_blocks = [int(b) for b in str(which_blocks).split(',')]
+
+    Path(eigs_output_dir).mkdir(parents=True, exist_ok=True)
+    model_name = model_name.lower()
+    model, val_transform, patch_size, num_heads = utils.get_model(model_name)
+
+    feat_out = {b: {} for b in which_blocks}
+
+    def make_hook(b):
+        def _hook(module, input, output):
+            feat_out[b]['qkv'] = output
+        return _hook
+
+    for b in which_blocks:
+        (model._modules['blocks'][b]
+              ._modules['attn']
+              ._modules['qkv']
+              .register_forward_hook(make_hook(b)))
+
+    filenames = Path(images_list).read_text().splitlines()
+    dataset = utils.ImagesDataset(
+        filenames=filenames, images_root=images_root, transform=val_transform)
+    dataloader = torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, num_workers=4)
+    print(f'Dataset size: {len(dataset)}')
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = model.to(device)
+
+    for images, files, indices in tqdm(dataloader, desc='Extracting features + eigs'):
+        id_ = Path(files[0]).stem
+        output_file = Path(eigs_output_dir) / f'{id_}.pth'
+        if output_file.is_file():
+            continue
+
+        B, C, H, W = images.shape
+        P = patch_size
+        H_patch, W_patch = H // P, W // P
+        H_pad, W_pad = H_patch * P, W_patch * P
+        T = H_patch * W_patch + 1
+        images = images[:, :, :H_pad, :W_pad].to(device)
+
+        with torch.no_grad():
+            model(images)
+
+        qk_layers = []
+        for b in which_blocks:
+            qkv = feat_out[b]['qkv']
+            qkv = qkv.reshape(B, T, 3, num_heads, -1 // num_heads).permute(2, 0, 3, 1, 4)
+            q = qkv[0].transpose(1, 2).reshape(B, T, -1)[:, 1:, :]
+            k = qkv[1].transpose(1, 2).reshape(B, T, -1)[:, 1:, :]
+            qk_layers.append(q + k)
+
+        feats = torch.cat(qk_layers, dim=-1).squeeze()  # (N, D) float32 on GPU
+
+        if normalize:
+            feats = F.normalize(feats, p=2, dim=-1)
+
+        s = feats.sum(dim=0)
+        d = (feats @ s).clamp(min=1e-6)
+        feats_tilde = feats * d.pow(-0.5).unsqueeze(1)
+
+        U, S, _ = torch.svd_lowrank(feats_tilde, q=K + 10, niter=4)
+        eigenvalues = (1.0 - S[:K] ** 2).cpu()
+        eigenvectors = U[:, :K].T.cpu()
+
+        for i in range(eigenvectors.shape[0]):
+            if 0.5 < torch.mean((eigenvectors[i] > 0).float()).item() < 1.0:
+                eigenvectors[i] = -eigenvectors[i]
+
+        torch.save({
+            'eigenvalues': eigenvalues,
+            'eigenvectors': eigenvectors,
+            'patch_size': patch_size,
+            'shape': (B, C, H, W),
+        }, str(output_file))
+
+    print(f'Saved eigenvectors to {eigs_output_dir}')
+
+
 if __name__ == '__main__':
     import fire
     torch.set_grad_enabled(False)
     fire.Fire({
         'extract_multilayer_features': extract_multilayer_features,
         'extract_eigs_svd': extract_eigs_svd,
+        'extract_features_and_eigs': extract_features_and_eigs,
     })
