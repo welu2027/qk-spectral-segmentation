@@ -70,7 +70,7 @@ def eval_corloc(bbox_file, anno_root):
             for obj in root.findall('object')
         ]
 
-    bbox_list = torch.load(bbox_file)
+    bbox_list = torch.load(bbox_file, weights_only=False)
     correct, total = 0, 0
     for item in bbox_list:
         if not item['bboxes_original_resolution']:
@@ -169,7 +169,7 @@ def visualize(eigs_dir, segs_dir, images_root, n_vis):
         colors  = [plt.cm.tab10.colors[i % 10] for i in labels if i != 0]
         overlay = label2rgb(seg_full, image=image, colors=colors, bg_label=0, alpha=0.45)
 
-        eig_data = torch.load(f'{eigs_dir}/{image_id}.pth', map_location='cpu')
+        eig_data = torch.load(f'{eigs_dir}/{image_id}.pth', map_location='cpu', weights_only=False)
         eigvecs  = eig_data['eigenvectors']
         H_p, W_p = segmap.shape[:2]
         n_show   = min(4, eigvecs.shape[0] - 1)

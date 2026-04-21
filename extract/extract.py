@@ -133,7 +133,7 @@ def _extract_eig(
     index, features_file = inp
 
     # Load 
-    data_dict = torch.load(features_file, map_location='cpu')
+    data_dict = torch.load(features_file, map_location='cpu', weights_only=False)
     image_id = data_dict['file'][:-4]
     
     # Load
@@ -292,8 +292,8 @@ def _extract_multi_region_segmentations(
     index, (feature_path, eigs_path) = inp
 
     # Load 
-    data_dict = torch.load(feature_path, map_location='cpu')
-    data_dict.update(torch.load(eigs_path, map_location='cpu'))
+    data_dict = torch.load(feature_path, map_location='cpu', weights_only=False)
+    data_dict.update(torch.load(eigs_path, map_location='cpu', weights_only=False))
 
     # Output file
     id = Path(data_dict.get('id', Path(feature_path).stem))
@@ -385,8 +385,8 @@ def _extract_single_region_segmentations(
     index, (feature_path, eigs_path) = inp
 
     # Load 
-    data_dict = torch.load(feature_path, map_location='cpu')
-    data_dict.update(torch.load(eigs_path, map_location='cpu'))
+    data_dict = torch.load(feature_path, map_location='cpu', weights_only=False)
+    data_dict.update(torch.load(eigs_path, map_location='cpu', weights_only=False))
 
     # Output file
     id = Path(data_dict.get('id', Path(feature_path).stem))
@@ -436,7 +436,7 @@ def _extract_bbox(
     index, (feature_path, segmentation_path) = inp
 
     # Load 
-    data_dict = torch.load(feature_path, map_location='cpu')
+    data_dict = torch.load(feature_path, map_location='cpu', weights_only=False)
     segmap = np.array(Image.open(str(segmentation_path)))
     image_id = data_dict.get('id', Path(feature_path).stem)
 
@@ -514,7 +514,7 @@ def extract_bbox_features(
     """
 
     # Load bounding boxes
-    bbox_list = torch.load(bbox_file)
+    bbox_list = torch.load(bbox_file, weights_only=False)
     total_num_boxes = sum(len(d['bboxes']) for d in bbox_list)
     print(f'Loaded bounding box list. There are {total_num_boxes} total bounding boxes.')
 
@@ -560,7 +560,7 @@ def extract_bbox_clusters(
     """
 
     # Load bounding boxes
-    bbox_list = torch.load(bbox_features_file)
+    bbox_list = torch.load(bbox_features_file, weights_only=False)
     total_num_boxes = sum(len(d['bboxes']) for d in bbox_list)
     print(f'Loaded bounding box list. There are {total_num_boxes} total bounding boxes with features.')
 
@@ -613,7 +613,7 @@ def extract_semantic_segmentations(
     """
 
     # Load bounding boxes
-    bbox_list = torch.load(bbox_clusters_file)
+    bbox_list = torch.load(bbox_clusters_file, weights_only=False)
     total_num_boxes = sum(len(d['bboxes']) for d in bbox_list)
     print(f'Loaded bounding box list. There are {total_num_boxes} total bounding boxes with features and clusters.')
 
@@ -769,7 +769,7 @@ def vis_segmentations(
 
     # Load optional bounding boxes
     if bbox_file is not None:
-        bboxes_list = torch.load(bbox_file)
+        bboxes_list = torch.load(bbox_file, weights_only=False)
 
     # Colors
     colors = get_cmap('tab20', 21).colors[:, :3]

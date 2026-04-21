@@ -145,7 +145,7 @@ def _extract_eig_svd(
       eigvecs(L_sym) = left singular vectors of F̃  [randomized SVD, O(N·D·K)]
     """
     index, features_file = inp
-    data_dict = torch.load(features_file, map_location='cpu')
+    data_dict = torch.load(features_file, map_location='cpu', weights_only=False)
     image_id = data_dict['id']
 
     output_file = Path(output_dir) / f'{image_id}.pth'
