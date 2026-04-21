@@ -646,8 +646,8 @@ def extract_semantic_segmentations(
         semantic_map = dict(zip(bbox_dict['segment_indices'], bbox_dict['clusters'].tolist()))
         assert 0 not in semantic_map, semantic_map
         semantic_map[0] = 0  # background region remains zero
-        # Perform mapping
-        semantic_segmap = np.vectorize(semantic_map.__getitem__)(segmap)
+        # Perform mapping (unmapped segment indices default to 0/background)
+        semantic_segmap = np.vectorize(lambda x: semantic_map.get(x, 0))(segmap)
         # Save
         output_file = str(Path(output_dir) / f'{image_id}.png')
         Image.fromarray(semantic_segmap.astype(np.uint8)).convert('L').save(output_file)
