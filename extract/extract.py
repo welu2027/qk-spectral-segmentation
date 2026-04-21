@@ -296,7 +296,7 @@ def _extract_multi_region_segmentations(
     data_dict.update(torch.load(eigs_path, map_location='cpu'))
 
     # Output file
-    id = Path(data_dict['id'])
+    id = Path(data_dict.get('id', Path(feature_path).stem))
     output_file = str(Path(output_dir) / f'{id}.png')
     if Path(output_file).is_file():
         print(f'Skipping existing file {str(output_file)}')
@@ -389,7 +389,7 @@ def _extract_single_region_segmentations(
     data_dict.update(torch.load(eigs_path, map_location='cpu'))
 
     # Output file
-    id = Path(data_dict['id'])
+    id = Path(data_dict.get('id', Path(feature_path).stem))
     output_file = str(Path(output_dir) / f'{id}.png')
     if Path(output_file).is_file():
         print(f'Skipping existing file {str(output_file)}')
@@ -438,7 +438,7 @@ def _extract_bbox(
     # Load 
     data_dict = torch.load(feature_path, map_location='cpu')
     segmap = np.array(Image.open(str(segmentation_path)))
-    image_id = data_dict['id']
+    image_id = data_dict.get('id', Path(feature_path).stem)
 
     # Sizes
     B, C, H, W, P, H_patch, W_patch, H_pad, W_pad = utils.get_image_sizes(data_dict, downsample_factor)
