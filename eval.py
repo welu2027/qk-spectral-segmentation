@@ -66,7 +66,7 @@ def eval_corloc(bbox_file, anno_root):
     def gt_boxes(anno_path):
         root = ET.parse(anno_path).getroot()
         return [
-            [int(obj.find('bndbox').find(t).text) for t in ('xmin', 'ymin', 'xmax', 'ymax')]
+            [int(float(obj.find('bndbox').find(t).text)) for t in ('xmin', 'ymin', 'xmax', 'ymax')]
             for obj in root.findall('object')
         ]
 
