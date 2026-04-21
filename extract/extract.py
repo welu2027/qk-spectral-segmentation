@@ -536,9 +536,14 @@ def extract_bbox_features(
         with torch.no_grad():
             for (xmin, ymin, xmax, ymax) in bboxes:
                 image_crop = image[:, :, ymin:ymax, xmin:xmax]
+                if image_crop.numel() == 0:
+                    continue
                 features_crop = model(image_crop).squeeze().cpu()
                 features_crops.append(features_crop)
-        bbox_dict['features'] = torch.stack(features_crops, dim=0)
+        if features_crops:
+            bbox_dict['features'] = torch.stack(features_crops, dim=0)
+        else:
+            bbox_dict['features'] = torch.zeros(0)
         del image
         torch.cuda.empty_cache()
     
