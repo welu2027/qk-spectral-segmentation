@@ -65,7 +65,11 @@ def eval_predictions(pred_dir: str, gt_dir: str, num_classes: int = 21, ignore_i
         pred = np.array(Image.open(pred_path).convert('L'))
         gt = np.array(Image.open(gt_path))
 
-        # Use majority vote to align cluster indices to GT classes
+        # Resize pred to GT resolution if they differ (pred is at patch resolution)
+        if pred.shape != gt.shape:
+            pred = np.array(Image.fromarray(pred).resize(
+                (gt.shape[1], gt.shape[0]), resample=Image.NEAREST))
+
         valid = gt != ignore_index
         flat_pred = pred[valid].astype(np.int32)
         flat_gt = gt[valid].astype(np.int32)
