@@ -1,6 +1,10 @@
+import os
+from pathlib import Path
+
 import numpy as np
 from joblib import Parallel
 from joblib.parallel import delayed
+from PIL import Image
 from scipy.optimize import linear_sum_assignment
 
 
@@ -44,3 +48,37 @@ def get_iou(flat_preds, flat_targets, c1, c2):
     fn += np.sum(tmp_all_gt & ~tmp_pred)
     jac = float(tp) / max(float(tp + fp + fn), 1e-8)
     return jac
+
+
+def eval_predictions(pred_dir: str, gt_dir: str, num_classes: int = 21, ignore_index: int = 255) -> float:
+    """Compute mIoU between predicted semantic segmaps and VOC-style ground truth."""
+    pred_files = sorted(Path(pred_dir).glob('*.png'))
+    iou_per_class = np.zeros(num_classes)
+    count_per_class = np.zeros(num_classes)
+
+    for pred_path in pred_files:
+        image_id = pred_path.stem
+        gt_path = Path(gt_dir) / f'{image_id}.png'
+        if not gt_path.exists():
+            continue
+
+        pred = np.array(Image.open(pred_path).convert('L'))
+        gt = np.array(Image.open(gt_path))
+
+        # Use majority vote to align cluster indices to GT classes
+        valid = gt != ignore_index
+        flat_pred = pred[valid].astype(np.int32)
+        flat_gt = gt[valid].astype(np.int32)
+
+        for cls in range(num_classes):
+            tp = np.sum((flat_pred == cls) & (flat_gt == cls))
+            fp = np.sum((flat_pred == cls) & (flat_gt != cls))
+            fn = np.sum((flat_pred != cls) & (flat_gt == cls))
+            denom = tp + fp + fn
+            if denom > 0:
+                iou_per_class[cls] += float(tp) / denom
+                count_per_class[cls] += 1
+
+    valid_classes = count_per_class > 0
+    miou = np.mean(iou_per_class[valid_classes] / count_per_class[valid_classes]) * 100
+    return miou
