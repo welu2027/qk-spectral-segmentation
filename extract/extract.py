@@ -533,11 +533,14 @@ def extract_bbox_features(
         image = val_transform(Image.open(image_filename).convert('RGB'))  # (3, H, W)
         image = image.unsqueeze(0).to('cuda')  # (1, 3, H, W)
         features_crops = []
-        for (xmin, ymin, xmax, ymax) in bboxes:
-            image_crop = image[:, :, ymin:ymax, xmin:xmax]
-            features_crop = model(image_crop).squeeze().cpu()
-            features_crops.append(features_crop)
+        with torch.no_grad():
+            for (xmin, ymin, xmax, ymax) in bboxes:
+                image_crop = image[:, :, ymin:ymax, xmin:xmax]
+                features_crop = model(image_crop).squeeze().cpu()
+                features_crops.append(features_crop)
         bbox_dict['features'] = torch.stack(features_crops, dim=0)
+        del image
+        torch.cuda.empty_cache()
     
     # Save
     torch.save(bbox_list, output_file)
