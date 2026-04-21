@@ -1,6 +1,38 @@
 from collections import defaultdict
+from pathlib import Path
 import torch
 import numpy as np
+from PIL import Image
+
+
+def compute_jaccard(pred_dir, gt_dir, threshold=0.5):
+    """Jaccard (IoU) between predicted single-object masks and VOC SegmentationObject GT."""
+    pred_dir = Path(pred_dir)
+    gt_dir = Path(gt_dir)
+
+    ious = []
+    for pred_file in sorted(pred_dir.glob('*.png')):
+        gt_file = gt_dir / pred_file.name
+        if not gt_file.exists():
+            continue
+
+        pred = np.array(Image.open(pred_file)).astype(np.float32)
+        gt   = np.array(Image.open(gt_file))
+
+        # Binarize prediction
+        pred_bin = pred > (pred.max() * threshold) if pred.max() > 0 else pred > 0
+        # Binarize GT: 0=background, 255=boundary, other values=object instances
+        gt_bin = (gt > 0) & (gt < 255)
+
+        intersection = np.sum(pred_bin & gt_bin)
+        union        = np.sum(pred_bin | gt_bin)
+        if union == 0:
+            continue
+        ious.append(intersection / union)
+
+    if not ious:
+        return 0.0
+    return 100.0 * float(np.mean(ious))
 
 
 @torch.no_grad()
