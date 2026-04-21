@@ -16,8 +16,9 @@ def compute_jaccard(pred_dir, gt_dir, threshold=0.5):
         if not gt_file.exists():
             continue
 
-        pred = np.array(Image.open(pred_file)).astype(np.float32)
         gt   = np.array(Image.open(gt_file))
+        pred = np.array(Image.open(pred_file).resize(
+            (gt.shape[1], gt.shape[0]), Image.NEAREST)).astype(np.float32)
 
         # Binarize prediction
         pred_bin = pred > (pred.max() * threshold) if pred.max() > 0 else pred > 0
